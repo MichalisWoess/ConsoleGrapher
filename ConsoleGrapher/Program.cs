@@ -1,7 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -11,10 +8,9 @@ Console.SetBufferSize(Console.WindowWidth, Console.WindowHeight);
 int CWIDTH = Console.BufferWidth;
 int CHEIGHT = Console.BufferHeight;
 
-List<Reading> reading = new();
-reading.Add(new Reading(1,1));
+List<Reading> readings = HelperMethods.ReadingsFromFile("Readings.txt");
 
-GraphList(reading);
+GraphList(readings);
 
 Console.ReadKey();
 
@@ -75,10 +71,13 @@ static int Map (int value, int fromSource, int toSource, int fromTarget, int toT
 void ConsoleSetFullscreen()
     => Console.SetWindowSize(Console.LargestWindowWidth - 10, Console.LargestWindowHeight - 10);
 
-record Reading(int Kills, double Seconds)
+
+public record Reading(int Kills, double Seconds)
 {
     public double KpS => Kills / Seconds;
     public double KpM => Kills / (Seconds / 60);
 };
+
+record struct Position(int X, int Y);
 
 #endregion
