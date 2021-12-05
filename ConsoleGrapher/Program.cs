@@ -1,22 +1,26 @@
 ﻿using System;
+using static System.Console;
+using static System.ConsoleColor;
 using System.Collections.Generic;
 using System.Linq;
+using static HelperMethods;
+using Microsoft.Win32.SafeHandles;
 
 ConsoleSetFullscreen();
-Console.SetBufferSize(Console.WindowWidth, Console.WindowHeight);
+SetBufferSize(WindowWidth, WindowHeight);
 
-int CWIDTH = Console.BufferWidth;
-int CHEIGHT = Console.BufferHeight;
+int CWIDTH = BufferWidth;
+int CHEIGHT = BufferHeight;
 
-List<Reading> readings = HelperMethods.ReadingsFromFile("Readings.txt");
+List<Reading> readings = ReadingsFromFile("Readings.txt", true);
 
 GraphList(readings);
 
-Console.ReadKey();
+ReadKey();
 
 #region Stuff
 
-void GraphList(List<Reading> list, bool allowExtremes = true)
+void GraphList(List<Reading> list, bool allowExtremes = true, bool centered = true)
 {
     if (!allowExtremes)
     {
@@ -24,25 +28,72 @@ void GraphList(List<Reading> list, bool allowExtremes = true)
     }
 
     var maxKpS = list.Max(v => v.KpS);
-    var vals = list.Count;
+    var maxKills = list.Max(v => v.Kills);
+    var valCount = list.Count;
 
-    for (int i = 0; i < 8; i++)
-        Console.WriteLine();
+    const int padding = 8;
+    const int internalPaddingPercent = 0;
+    var origin = PrintEmptyGraph(padding);
     
-    Console.WriteLine('^');
-    for (int i = 0; i < CHEIGHT - 10; i++)
-        Console.WriteLine('|');
-    
-    for (int i = 0; i < CWIDTH - 1; i++)
-        Console.Write('-');
+    var (left, top) = origin;
+    origin.Left += 1;
+    origin.Top -= 2;
 
-    Console.Write('>');
+    var availHeight = CHEIGHT - 2 - 2 * padding;
+    var availWidth = CWIDTH - 1 - 2 * padding;
+
+    int heightPadding = (int)(availHeight * (internalPaddingPercent / (double) 100));
+    int paddedHeight = availHeight - (2 * heightPadding);
+    
+    int widthPadding = (int)(availWidth * (internalPaddingPercent / (double) 100));
+    int paddedWidth = availWidth - (2 * widthPadding);
+
+    origin.Left += widthPadding;
+    origin.Top -= heightPadding;
+
+    var listCount = centered ? valCount + 1 : valCount - 1;
+    var spacing = paddedWidth / listCount;
+    for (int i = 0; i < valCount; i++)
+    {
+        var mappedVal = Map(list[i].Kills, maxKills, paddedHeight);
+        var offset = centered ? (i + 1) * spacing : i * spacing;
+        PrintVal(origin, offset, (int)mappedVal, '=');
+    }
+}
+
+void PrintVal((int Left, int Top) origin, int leftOffs, int val, char c)
+{
+    SetCursorPosition(origin.Left + leftOffs, origin.Top - val);
+    WriteColored(c, Red, Cyan);
+}
+
+(int Left, int Top) PrintEmptyGraph(int padding = 10)
+{
+    Write(new String('\n', padding));
+    
+    Write(new String(' ', padding));
+    WriteLine("^");
+    for (int i = 0; i < CHEIGHT - 2 - 2 * padding; i++)
+    {
+        Write(new String(' ', padding));
+        WriteLine('|');
+    }
+
+    Write(new String(' ', padding));
+
+    var pos = GetCursorPosition();
+    Write(new String('-', CWIDTH - 1 - 2 * padding));
+
+    WriteLine('>');
+    Write(new String('\n', padding));
+
+    return pos;
 }
 
 Reading ReadReading()
 {
-    Console.Clear();
-    Console.WriteLine
+    Clear();
+    WriteLine
     (@"
       _   _                 _____                _ _             
      | \ | |               |  __ \              | (_)            
@@ -54,22 +105,22 @@ Reading ReadReading()
                                                            |___/     
     ");
 
-    Console.Write("\n\nKills: ");
-    var kills = int.Parse(Console.ReadLine() ?? string.Empty);
+    Write("\n\nKills: ");
+    var kills = int.Parse(ReadLine() ?? string.Empty);
     
-    Console.Write("\n\nSeconds: ");
-    var seconds = double.Parse(Console.ReadLine() ?? string.Empty);
+    Write("\n\nSeconds: ");
+    var seconds = double.Parse(ReadLine() ?? string.Empty);
 
     return new Reading(kills, seconds);
 }
 
-static int Map (int value, int fromSource, int toSource, int fromTarget, int toTarget)
+static double Map (int value, int fromMax, int toMax, int fromMin = 0, int toMin = 0)
 {
-    return (value - fromSource) / (toSource - fromSource) * (toTarget - fromTarget) + fromTarget;
+    return ((double)value / (fromMax - fromMin)) * ((double)toMax - toMin);
 }
 
 void ConsoleSetFullscreen()
-    => Console.SetWindowSize(Console.LargestWindowWidth - 10, Console.LargestWindowHeight - 10);
+    => SetWindowSize(LargestWindowWidth - 70, LargestWindowHeight - 40);
 
 
 public record Reading(int Kills, double Seconds)
@@ -77,7 +128,5 @@ public record Reading(int Kills, double Seconds)
     public double KpS => Kills / Seconds;
     public double KpM => Kills / (Seconds / 60);
 };
-
-record struct Position(int X, int Y);
 
 #endregion
