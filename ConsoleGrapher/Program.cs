@@ -3,18 +3,24 @@ using static System.Console;
 using static System.ConsoleColor;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using static HelperMethods;
 using Microsoft.Win32.SafeHandles;
 
+#region Setup
 ConsoleSetFullscreen();
+CursorVisible = false;
 SetBufferSize(WindowWidth, WindowHeight);
+OutputEncoding = Encoding.Unicode;
+#endregion
 
 int CWIDTH = BufferWidth;
 int CHEIGHT = BufferHeight;
 
 List<Reading> readings = ReadingsFromFile("Readings.txt", true);
+List<(int Left, int Top)> valuePositions = new();
 
-GraphList(readings);
+GraphList(readings, false, false);
 
 ReadKey();
 
@@ -50,7 +56,7 @@ void GraphList(List<Reading> list, bool allowExtremes = true, bool centered = tr
 
     origin.Left += widthPadding;
     origin.Top -= heightPadding;
-
+    
     var listCount = centered ? valCount + 1 : valCount - 1;
     var spacing = paddedWidth / listCount;
     for (int i = 0; i < valCount; i++)
@@ -59,11 +65,36 @@ void GraphList(List<Reading> list, bool allowExtremes = true, bool centered = tr
         var offset = centered ? (i + 1) * spacing : i * spacing;
         PrintVal(origin, offset, (int)mappedVal, '=');
     }
+
+    for (int i = 0; i < valuePositions.Count - 1; i++)
+    {
+        var dx = valuePositions[i + 1].Left - valuePositions[i].Left;
+        var dy = valuePositions[i].Top - valuePositions[i + 1].Top;
+        double slope = (double)dy / dx;
+
+        var firstValueOrigin = valuePositions[i];
+        firstValueOrigin.Left++;
+        double currentVal = firstValueOrigin.Top;
+        for (int j = 0; j < dx - 1; j++)
+        {
+            currentVal -= slope;
+            SetCursorPosition
+            (origin.Left + firstValueOrigin.Left + j - 9,
+             origin.Top - (origin.Top - (int)Math.Round(currentVal))
+            );
+            
+            Write(".");
+        }
+    }
 }
 
 void PrintVal((int Left, int Top) origin, int leftOffs, int val, char c)
 {
-    SetCursorPosition(origin.Left + leftOffs, origin.Top - val);
+    int x = origin.Left + leftOffs;
+    int y = origin.Top - val;
+    
+    valuePositions.Add((x, y));
+    SetCursorPosition(x, y);
     WriteColored(c, Red, Cyan);
 }
 
@@ -120,7 +151,7 @@ static double Map (int value, int fromMax, int toMax, int fromMin = 0, int toMin
 }
 
 void ConsoleSetFullscreen()
-    => SetWindowSize(LargestWindowWidth - 70, LargestWindowHeight - 40);
+    => SetWindowSize(LargestWindowWidth - 10, LargestWindowHeight - 10);
 
 
 public record Reading(int Kills, double Seconds)
